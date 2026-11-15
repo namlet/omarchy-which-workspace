@@ -6,6 +6,8 @@ spread across a translucent card along the top of the screen, with each window
 in its real tiled position showing a snapshot of it. Click a window to jump straight
 to it: its workspace comes up with that window focused.
 
+![The Which Workspace overlay: three workspaces spread across a translucent card, with the scratchpad's drop-down terminal above them](preview.png)
+
 > **Status: early (0.1.0).** Built against Omarchy 4.5; not yet tested in a live shell.
 
 ## Install

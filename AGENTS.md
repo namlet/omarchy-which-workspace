@@ -49,7 +49,7 @@ Follows the layout of Omarchy's first-party plugins and the marketplace rules:
 | `tests/*.test.js` | `node --test` unit tests for `Model.js`. |
 | `tests/tst_*.qml` | Headless `qmltestrunner` tests for `components/`. |
 | `README.md`, `LICENSE` | Required at the root by the marketplace. |
-| `preview.png` | Optional marketplace screenshot, root only. |
+| `preview.png` | Marketplace screenshot, also shown in the README. Retake it on a staged desktop with public content only: it is published. |
 
 No symlinks anywhere in the tree: `omarchy plugin validate` rejects them.
 
@@ -164,8 +164,8 @@ file updated if a gap opened or closed.
 
 These need Nathan's decision. Record each with a date in the status file.
 
-- Before submitting: confirm the id is unused on plugins.omarchy.org, pick category
-  `Desktop` and tags `workspaces`, `hyprland`, `bar`, and add `preview.png`.
+- Before submitting: confirm the id is unused on plugins.omarchy.org, and pick
+  category `Desktop` and tags `workspaces`, `hyprland`, `bar`.
 
 The repo itself (`namlet/omarchy-which-workspace`, public) and its branch ruleset are
 managed with `gh`: `gh api repos/namlet/omarchy-which-workspace/rulesets` lists them.
