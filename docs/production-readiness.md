@@ -11,4 +11,4 @@ Status per engineering practice in [AGENTS.md](../AGENTS.md). Last updated 2026-
 | Security | Plain-text sinks, validated dispatch addresses, bounded text, no network/privileges; secret scanning in our CI (GitHub code-security settings not used, by choice) | none | Nathan |
 | Observability | Shell journal (`journalctl --user -t omarchy-shell`) | none | n/a |
 | Disaster recovery | N/A, no stored data | none | n/a |
-| Documentation | README (install/usage/configure/update/remove), AGENTS.md | `preview.png` for the marketplace | Nathan |
+| Documentation | README (install/usage/configure/update/remove, screenshot), AGENTS.md, marketplace `preview.png` (staged desktop, public content only) since 2026-11-15 | none | Nathan |
