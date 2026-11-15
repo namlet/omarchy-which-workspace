@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.namlet.which-workspace",
+  "name": "Which Workspace",
+  "version": "0.1.0",
+  "author": "Nathan Loyer",
+  "license": "MIT",
+  "description": "Bar popup listing every occupied workspace and its windows. Click a window to jump to it.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Which Workspace",
+    "description": "Occupied workspaces and their windows; click one to focus it",
+    "category": "Desktop",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}

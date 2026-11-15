@@ -1,0 +1,30 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: make test (Arch Linux)
+    runs-on: ubuntu-latest
+    # Same Qt and Node packages Omarchy users get.
+    container: archlinux:latest
+    timeout-minutes: 10
+    steps:
+      - name: Install tools
+        run: pacman -Syu --noconfirm --needed nodejs qt6-declarative make git gitleaks
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Run tests and lint
+        run: make test
+      - name: Scan history for secrets
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          gitleaks git --redact --exit-code 1 .
