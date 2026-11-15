@@ -84,7 +84,10 @@ From the shell docs and the marketplace's SUBMISSION.md and SECURITY.md:
 ## Branches and commits
 
 `main` ← `develop` ← `feature/*`. Branch off `develop` and open a pull request back
-into it. Releases merge `develop` into `main` and are tagged there (`v0.1.0`), with
+into it. GitHub enforces this with the ruleset "Protect main and develop" on both
+branches: pull requests only, the `make test (Arch Linux)` check passing on an
+up-to-date branch, no force pushes or deletion, and no bypass, admins included. No
+approval is required while there is a single maintainer. Releases merge `develop` into `main` and are tagged there (`v0.1.0`), with
 `manifest.json`'s `version` bumped in the same PR. Commits are small, lowercase
 imperative, no prefixes. No secrets in the repo, ever: a secret that reaches a commit
 is leaked even if deleted. Rotate it and tell Nathan.
@@ -95,7 +98,8 @@ Everything that applies is in place, automated and enforced before the marketpla
 submission.
 
 - **Source control.** Git, `.gitignore` written first, PRs only on `main` and
-  `develop`, gitleaks in CI.
+  `develop` (enforced by the ruleset), gitleaks over the full history in CI. Secret
+  scanning is our CI's job, not GitHub's code-security settings, by choice.
 - **CI/CD.** `.github/workflows/checks.yml` runs `make test` and gitleaks on every
   push and PR, in an Arch container so Node matches what users get. Actions are
   pinned to commit SHAs, `permissions: contents: read`, with a job timeout. Dependabot
@@ -158,10 +162,10 @@ file updated if a gap opened or closed.
 
 ## For the owner
 
-These can't be done from the repository. Record each with a date in the status file.
+These need Nathan's decision. Record each with a date in the status file.
 
-- GitHub repo `namlet/omarchy-which-workspace`, public, with `main` and `develop`
-  protected: PRs only, required `make test` check, no force pushes, admins included.
-- GitHub secret scanning and push protection on.
 - Before submitting: confirm the id is unused on plugins.omarchy.org, pick category
   `Desktop` and tags `workspaces`, `hyprland`, `bar`, and add `preview.png`.
+
+The repo itself (`namlet/omarchy-which-workspace`, public) and its branch ruleset are
+managed with `gh`: `gh api repos/namlet/omarchy-which-workspace/rulesets` lists them.
