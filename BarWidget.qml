@@ -137,7 +137,13 @@ Panel {
         readonly property real fit: sourceSize.width > 0 ? Math.min(1, cap / Math.max(sourceSize.width, sourceSize.height)) : 1
         width: Math.max(1, sourceSize.width * fit)
         height: Math.max(1, sourceSize.height * fit)
-        captureSource: thumb.win && thumb.win.ref ? thumb.win.ref.wayland : null
+        // Only while the overlay is open. A ScreencopyView grabs a frame as soon as it
+        // has a source, and the tiles exist (and are rebuilt as windows come and go)
+        // even while the overlay is closed. With Hyprland showing no outputs, around
+        // lock, monitor sleep and wake, a window capture aborts Hyprland 0.56.2 in
+        // CScreenshareSession::init, which strands the lock screen. Opening is a user
+        // action, so a real screen exists by then, and closing releases every capture.
+        captureSource: root.opened && thumb.win && thumb.win.ref ? thumb.win.ref.wayland : null
         live: root.opened && thumb.win !== null && thumb.win.special === true
 
         Connections {
