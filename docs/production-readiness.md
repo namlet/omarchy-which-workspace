@@ -4,7 +4,7 @@ Status per engineering practice in [AGENTS.md](../AGENTS.md). Last updated 2026-
 
 | Practice | In place | Open | Owner |
 |---|---|---|---|
-| Source control | Git, public GitHub remote, `.gitignore`, gitleaks over full history in CI; ruleset on `main`/`develop` (PRs only, required check, no force push or deletion, no bypass) since 2026-11-15 | none | Nathan |
+| Source control | Git, public GitHub remote, `.gitignore`, gitleaks over full history in CI; rulesets on `main` and `develop` (PRs only, required check, no force push or deletion, no bypass) since 2026-11-15; up-to-date requirement dropped on `main` 2026-11-16, so releases need no back-merge | none | Nathan |
 | CI/CD | `checks.yml` (make test + gitleaks, pinned SHAs, read-only token, timeout), Dependabot for actions; first runs green on `main` and `develop` 2026-11-15 | none | Nathan / agent |
 | Infrastructure | N/A, nothing hosted; tested on Omarchy 4.5.0 with Quickshell 0.3.2 (recorded in the README) | none | agent |
 | Testing | 25 Node tests on `Model.js`, 11 headless QML tests on `components/`, qmllint, all in `make test` | Smoke test, 2026-11-15, one monitor: steps 1 and 4 seen working by the agent (overlay, live captures of off-screen workspaces, scratchpad sliding in as just its window); everyday use, including clicking through to windows, reported working by Nathan. 0.1.1 (2026-11-16): shell restarted, overlay opened and closed with no plugin errors in the journal; the crash fix itself not reproduced (needs Hyprland with no outputs). Not yet run: step 6 (disable, re-enable, restart, remove) and anything on two monitors | Nathan / agent |
