@@ -60,6 +60,14 @@ Panel {
   readonly property var windows: Model.flatWindows(Model.shownSpecial(root.workspaces).concat(Model.regular(root.workspaces)))
   property string cursorAddress: ""
 
+  // No window is captured until the overlay has been opened once. The grid and its
+  // thumbnails exist from shell start, and a ScreencopyView grabs a frame as soon as it
+  // has a source. The shell often starts while Hyprland has no outputs (around lock and
+  // monitor wake), and a window capture then aborts Hyprland 0.56.2 in
+  // CScreenshareSession::init, which strands the lock screen. Opening is a user action,
+  // so by then there is a real screen.
+  property bool captureArmed: false
+
   Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
 
   function focusWindow(win) {
@@ -85,6 +93,7 @@ Panel {
   }
 
   onOpenedChanged: if (opened) {
+    root.captureArmed = true
     root.cursorAddress = ""
     // Geometry and class come from Hyprland's IPC snapshot; ask for a fresh one.
     Hyprland.refreshMonitors()
@@ -137,7 +146,7 @@ Panel {
         readonly property real fit: sourceSize.width > 0 ? Math.min(1, cap / Math.max(sourceSize.width, sourceSize.height)) : 1
         width: Math.max(1, sourceSize.width * fit)
         height: Math.max(1, sourceSize.height * fit)
-        captureSource: thumb.win && thumb.win.ref ? thumb.win.ref.wayland : null
+        captureSource: root.captureArmed && thumb.win && thumb.win.ref ? thumb.win.ref.wayland : null
         live: root.opened && thumb.win !== null && thumb.win.special === true
 
         Connections {
