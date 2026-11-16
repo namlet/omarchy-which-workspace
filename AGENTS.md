@@ -85,10 +85,13 @@ From the shell docs and the marketplace's SUBMISSION.md and SECURITY.md:
 ## Branches and commits
 
 `main` ← `develop` ← `feature/*`. Branch off `develop` and open a pull request back
-into it. GitHub enforces this with the ruleset "Protect main and develop" on both
-branches: pull requests only, the `make test (Arch Linux)` check passing on an
-up-to-date branch, no force pushes or deletion, and no bypass, admins included. No
-approval is required while there is a single maintainer. Releases merge `develop` into `main` and are tagged there (`v0.1.0`), with
+into it. GitHub enforces this with two rulesets, "Protect develop" and "Protect
+main": pull requests only, the `make test (Arch Linux)` check passing, no force
+pushes or deletion, and no bypass, admins included. No approval is required while
+there is a single maintainer. Only `develop` requires the branch to be up to date
+before merging. `main` only ever receives `develop`, which already holds all of its
+code, so `develop` showing "behind" `main` by release merge commits is expected and
+needs no sync. Releases merge `develop` into `main` and are tagged there (`v0.1.0`), with
 `manifest.json`'s `version` bumped in the same PR. Commits are small, lowercase
 imperative, no prefixes. No secrets in the repo, ever: a secret that reaches a commit
 is leaked even if deleted. Rotate it and tell Nathan.
@@ -168,5 +171,5 @@ These need Nathan's decision. Record each with a date in the status file.
 - Before submitting: confirm the id is unused on plugins.omarchy.org, and pick
   category `Desktop` and tags `workspaces`, `hyprland`, `bar`.
 
-The repo itself (`namlet/omarchy-which-workspace`, public) and its branch ruleset are
+The repo itself (`namlet/omarchy-which-workspace`, public) and its branch rulesets are
 managed with `gh`: `gh api repos/namlet/omarchy-which-workspace/rulesets` lists them.
