@@ -193,3 +193,50 @@ test("two scratchpad windows share one box in their real arrangement", () => {
   assert.deepEqual(cropped.extent, { w: 1, h: 1 })
   assert.deepEqual(cropped.windows.map((w) => w.rect), [{ x: 0, y: 0, w: 0.5, h: 0.5 }, { x: 0.5, y: 0.5, w: 0.5, h: 0.5 }])
 })
+
+const monitors = [{ id: 0, width: 1920, height: 1080 }, { id: 1, width: 2560, height: 1440, disabled: false }]
+
+test("capture only a mapped window on a present, enabled monitor", () => {
+  assert.equal(Model.canCapture(0, true, monitors), true)
+  assert.equal(Model.canCapture(1, true, monitors), true)
+  assert.equal(Model.canCapture("0", true, monitors), true)
+})
+
+test("never capture a window with no monitor: that crashes Hyprland 0.56.2", () => {
+  assert.equal(Model.canCapture(-1, true, monitors), false)
+  assert.equal(Model.canCapture(undefined, true, monitors), false)
+  assert.equal(Model.canCapture(null, true, monitors), false)
+  assert.equal(Model.canCapture("", true, monitors), false)
+  assert.equal(Model.canCapture(1.5, true, monitors), false)
+  assert.equal(Model.canCapture("0; rm", true, monitors), false)
+})
+
+test("never capture on a monitor that is gone, disabled or has no size", () => {
+  assert.equal(Model.canCapture(2, true, monitors), false)
+  assert.equal(Model.canCapture(0, true, []), false)
+  assert.equal(Model.canCapture(0, true, undefined), false)
+  assert.equal(Model.canCapture(0, true, [{ id: 0, width: 1920, height: 1080, disabled: true }]), false)
+  assert.equal(Model.canCapture(0, true, [{ id: 0, width: 0, height: 0 }]), false)
+  assert.equal(Model.canCapture(0, true, [{ id: 0 }]), false)
+})
+
+test("never capture an unmapped window, or one whose state is unknown", () => {
+  assert.equal(Model.canCapture(0, false, monitors), false)
+  assert.equal(Model.canCapture(0, undefined, monitors), false)
+})
+
+test("windows carry capturable from their monitor; no monitor list means none", () => {
+  const ws = (monitorId, mapped) => [{ id: 1, name: "1", windows: [Object.assign(win("0xa", "foot", "~"), { monitorId, mapped })] }]
+  assert.equal(Model.occupiedWorkspaces(ws(0, true), monitors)[0].windows[0].capturable, true)
+  assert.equal(Model.occupiedWorkspaces(ws(-1, true), monitors)[0].windows[0].capturable, false)
+  assert.equal(Model.occupiedWorkspaces(ws(0, true))[0].windows[0].capturable, false)
+})
+
+test("the scratchpad crop keeps each window's capturable flag", () => {
+  const wsList = Model.occupiedWorkspaces([{ id: -98, name: "special:scratchpad", shown: true,
+    monitor: { name: "M", x: 0, y: 0, width: 1920, height: 1080, scale: 1 },
+    windows: [Object.assign(win("0xa", "foot", "~"), { at: [12, 12], size: [1896, 356], monitorId: 0, mapped: true }),
+      Object.assign(win("0xb", "foot", "~"), { at: [12, 400], size: [600, 300], monitorId: -1, mapped: true })] }], monitors)
+  const cropped = Model.windowBounds(wsList[0])
+  assert.deepEqual(cropped.windows.map((w) => w.capturable), [true, false])
+})

@@ -43,12 +43,22 @@ Panel {
           at: ipc.at,
           size: ipc.size,
           floating: ipc.floating === true,
+          // Hyprland's own record of the window's monitor, for Model.canCapture.
+          monitorId: ipc.monitor,
+          mapped: ipc.mapped,
           icon: root.iconFor(appId),
           ref: t
         }
       })
     }
-  }))
+  }), root.monitorList)
+
+  // Monitors as Hyprland reports them now. A window may be captured only while its
+  // monitor is in this list (see Model.canCapture).
+  readonly property var monitorList: Hyprland.monitors.values.map(function(m) {
+    var ipc = m.lastIpcObject || {}
+    return { id: m.id, disabled: ipc.disabled === true, width: m.width, height: m.height }
+  })
 
   // Special workspaces down on some monitor right now (the scratchpad after its hotkey).
   readonly property var shownSpecialNames: Hyprland.monitors.values.map(function(m) {
@@ -93,12 +103,29 @@ Panel {
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
-  // The scratchpad hotkey changes a monitor's special workspace without any workspace
-  // switch, and Quickshell keeps it only in the monitor's IPC snapshot: refresh that.
+  // Quickshell keeps window geometry and monitors only in IPC snapshots, so refresh
+  // them on the events that change them (no polling):
+  // - A monitor coming or going leaves windows without one until Hyprland settles, and
+  //   starting a capture then crashes Hyprland. Close at once, which stops every
+  //   capture, and refresh so the next open sees the new state.
+  // - The scratchpad hotkey changes a monitor's special workspace without a workspace
+  //   switch, and may move the scratchpad window first.
+  // - A new or moved window has no geometry until refreshed; without it, it is drawn
+  //   stretched to the tile.
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (event && String(event.name).indexOf("activespecial") === 0) Hyprland.refreshMonitors()
+      var name = event ? String(event.name) : ""
+      if (name.indexOf("monitoradded") === 0 || name.indexOf("monitorremoved") === 0) {
+        root.close()
+        Hyprland.refreshMonitors()
+        Hyprland.refreshToplevels()
+      } else if (name.indexOf("activespecial") === 0) {
+        Hyprland.refreshMonitors()
+        Hyprland.refreshToplevels()
+      } else if (name === "openwindow" || name.indexOf("movewindow") === 0 || name === "changefloatingmode") {
+        Hyprland.refreshToplevels()
+      }
     }
   }
 
@@ -137,18 +164,19 @@ Panel {
         readonly property real fit: sourceSize.width > 0 ? Math.min(1, cap / Math.max(sourceSize.width, sourceSize.height)) : 1
         width: Math.max(1, sourceSize.width * fit)
         height: Math.max(1, sourceSize.height * fit)
-        // Only while the overlay is open. A ScreencopyView grabs a frame as soon as it
-        // has a source, and the tiles exist (and are rebuilt as windows come and go)
-        // even while the overlay is closed. With Hyprland showing no outputs, around
-        // lock, monitor sleep and wake, a window capture aborts Hyprland 0.56.2 in
-        // CScreenshareSession::init, which strands the lock screen. Opening is a user
-        // action, so a real screen exists by then, and closing releases every capture.
-        captureSource: root.opened && thumb.win && thumb.win.ref ? thumb.win.ref.wayland : null
-        live: root.opened && thumb.win !== null && thumb.win.special === true
+        // Only while the overlay is open, and only for a window Hyprland places on a
+        // present monitor (Model.canCapture). Starting a capture of a window with no
+        // monitor crashes Hyprland 0.56.2 in CScreenshareSession::init: it happens
+        // around monitor sleep, wake and unplug. A window that can't be captured shows
+        // just its icon. A ScreencopyView grabs a frame as soon as it has a source, and
+        // the tiles exist even while the overlay is closed, so closing releases them.
+        readonly property bool allowed: root.opened && thumb.win !== null && thumb.win.capturable === true
+        captureSource: allowed && thumb.win.ref ? thumb.win.ref.wayland : null
+        live: allowed && thumb.win.special === true
 
         Connections {
           target: root
-          function onOpenedChanged() { if (root.opened) capture.captureFrame() }
+          function onOpenedChanged() { if (root.opened && capture.captureSource) capture.captureFrame() }
         }
       }
 
