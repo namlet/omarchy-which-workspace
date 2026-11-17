@@ -8,7 +8,7 @@ to it: its workspace comes up with that window focused.
 
 ![The Which Workspace overlay: three workspaces spread across a translucent card, with the scratchpad's drop-down terminal above them](preview.png)
 
-> **Status: early (0.1.1).** Tested on Omarchy 4.5 (Quickshell 0.3.2) with one monitor.
+> **Status: early (0.1.2).** Tested on Omarchy 4.5 (Quickshell 0.3.2) with one monitor.
 
 ## Install
 
