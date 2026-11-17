@@ -67,8 +67,13 @@ From the shell docs and the marketplace's SUBMISSION.md and SECURITY.md:
   Thumbnails are still captures taken each time the overlay opens, never streamed,
   except the scratchpad's while it is down and the overlay is open (a single capture
   catches it mid-slide). Captures are shown through a mipmapped `ShaderEffectSource`
-  so they scale down smoothly. Nothing is captured while the overlay is closed: a
-  capture while Hyprland has no outputs (lock, monitor sleep) crashes Hyprland 0.56.2.
+  so they scale down smoothly. Nothing is captured while the overlay is closed, and
+  a window is captured only when `Model.canCapture` confirms Hyprland places it on a
+  present monitor: starting a capture of a window with no monitor (around monitor
+  sleep, wake and unplug) crashes Hyprland 0.56.2 in `CScreenshareSession::init`. A
+  monitor coming or going closes the overlay. Geometry and monitor snapshots are
+  refreshed on Hyprland events (window opened or moved, floating toggled, scratchpad,
+  monitor added or removed), never on a timer.
 - **Theme and motion.** Colors from `bar.*` or `Commons.Color` (always through the
   `qs.Commons as Commons` alias), sizes from `Style.*`, durations through
   `Style.duration()`. Use the `qs.Ui` kit (`BarIconButton`, `KeyboardPanel`,

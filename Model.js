@@ -66,14 +66,34 @@ function layoutWindows(windows, monitor) {
   })
 }
 
+// Whether a window may be captured right now. Starting a capture of a window that has
+// no monitor crashes Hyprland 0.56.2: CScreenshareSession::init uses the window's
+// monitor without checking it (it has none while the outputs are gone, around monitor
+// sleep, wake and unplug, and transiently after they come back). So a capture starts
+// only for a mapped window whose monitor, as Hyprland itself reports it, is one of the
+// enabled monitors present now. Anything missing or unknown means no.
+// monitorId: the window's `monitor` from Hyprland (-1 when it has none).
+// monitors: [{ id, disabled, width, height }] from Hyprland's monitor list.
+function canCapture(monitorId, mapped, monitors) {
+  if (mapped !== true) return false
+  if (monitorId === null || monitorId === undefined || monitorId === "") return false
+  const id = Number(monitorId)
+  if (!Number.isInteger(id) || id < 0) return false
+  return (monitors || []).some(function(m) {
+    return m && Number(m.id) === id && m.disabled !== true && finite(m.width) > 0 && finite(m.height) > 0
+  })
+}
+
 // workspaces: [{ id, name, monitor: { name, x, y, width, height, scale, transform },
-//   shown, windows: [{ address, appId, title, at: [x, y], size: [w, h], floating, icon, ref }] }]
+//   shown, windows: [{ address, appId, title, at: [x, y], size: [w, h], floating, icon, ref,
+//   monitorId, mapped }] }]
+// monitors: Hyprland's monitor list, for canCapture.
 // `shown` says whether a special workspace is on screen right now (Hyprland hides the
 // scratchpad until its hotkey brings it down). `ref` is passed through untouched (the
-// live toplevel, for its thumbnail).
+// live toplevel, for its thumbnail). Each window gets `capturable` from canCapture.
 // Returns the occupied ones only, by number; special (scratchpad) workspaces, whose
 // ids are negative, come after them by name. Floating windows are drawn last, on top.
-function occupiedWorkspaces(workspaces) {
+function occupiedWorkspaces(workspaces, monitors) {
   const list = (workspaces || [])
     .map(function(ws) {
       const monitor = ws.monitor || null
@@ -89,6 +109,7 @@ function occupiedWorkspaces(workspaces) {
             icon: String(win.icon || ""),
             at: win.at,
             size: win.size,
+            capturable: canCapture(win.monitorId, win.mapped, monitors),
             ref: win.ref
           }
         })
@@ -222,7 +243,7 @@ function chunk(list, size) {
 
 if (typeof module !== "undefined") {
   module.exports = {
-    MAX_TEXT, SLOTS, cleanText, normalizeAddress, focusExpression, logicalSize, layoutWindows,
+    MAX_TEXT, SLOTS, cleanText, normalizeAddress, focusExpression, logicalSize, layoutWindows, canCapture,
     occupiedWorkspaces, windowBounds, regular, shownSpecial, slotLabel, spansMonitors, workspaceLabel,
     windowLabel, windowCount, flatWindows, moveCursor, fitTiles, chunk
   }
