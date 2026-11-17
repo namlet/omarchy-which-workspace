@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.namlet.which-workspace",
   "name": "Which Workspace",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "Nathan Loyer",
   "license": "MIT",
   "description": "Bar popup listing every occupied workspace and its windows. Click a window to jump to it.",
