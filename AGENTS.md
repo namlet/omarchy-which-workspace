@@ -70,8 +70,13 @@ From the shell docs and the marketplace's SUBMISSION.md and SECURITY.md:
   so they scale down smoothly. Nothing is captured while the overlay is closed, and
   a window is captured only when `Model.canCapture` confirms Hyprland places it on a
   present monitor: starting a capture of a window with no monitor (around monitor
-  sleep, wake and unplug) crashes Hyprland 0.56.2 in `CScreenshareSession::init`. A
-  monitor coming or going closes the overlay. Geometry and monitor snapshots are
+  sleep, wake and unplug) crashes Hyprland 0.56.2 in `CScreenshareSession::init`.
+  That check can't close the gap between the plugin's last look and the capture
+  request, so nothing is captured at all before Hyprland 0.57.0
+  (`Model.capturesSupported`, from one `hyprctl version -j` run at startup, no timer).
+  All captures together stay within `Model.CAPTURE_BUDGET` (128 MB, workspaces on
+  screen first): a capture buffer is the window at full resolution however small it
+  is drawn. A monitor coming or going closes the overlay. Geometry and monitor snapshots are
   refreshed on Hyprland events (window opened or moved, floating toggled, scratchpad,
   monitor added or removed), never on a timer.
 - **Theme and motion.** Colors from `bar.*` or `Commons.Color` (always through the

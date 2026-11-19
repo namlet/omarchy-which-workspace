@@ -84,13 +84,80 @@ function canCapture(monitorId, mapped, monitors) {
   })
 }
 
+// Hyprland 0.56.2 can also lose a window's monitor between the plugin's last look at it
+// and the capture request reaching the compositor (an output going to sleep, say), and
+// no client-side check can close that gap. Only 0.57.0 checks the monitor itself
+// (hyprwm/Hyprland#16451), so captures need 0.57.0 or newer.
+// versionJson: the output of `hyprctl version -j`. Anything unreadable means no.
+const MIN_CAPTURE_VERSION = [0, 57, 0]
+
+function capturesSupported(versionJson) {
+  let info
+  try { info = JSON.parse(String(versionJson === undefined || versionJson === null ? "" : versionJson)) } catch (e) { return false }
+  if (!info || typeof info !== "object") return false
+  const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(String(info.version || info.tag || ""))
+  if (!match) return false
+  for (let i = 0; i < 3; i++) {
+    const part = Number(match[i + 1])
+    if (part !== MIN_CAPTURE_VERSION[i]) return part > MIN_CAPTURE_VERSION[i]
+  }
+  return true
+}
+
+// A capture holds the window at full resolution however small it is drawn: its logical
+// size times the monitor's scale, 4 bytes a pixel. A window of unknown size is costed as
+// its whole monitor.
+function captureBytes(size, monitor) {
+  const scale = monitor && finite(monitor.scale) > 0 ? finite(monitor.scale) : 1
+  const w = finite((size || [])[0]), h = finite((size || [])[1])
+  if (w > 0 && h > 0) return Math.round(w * scale) * Math.round(h * scale) * 4
+  const mw = monitor ? finite(monitor.width) : NaN, mh = monitor ? finite(monitor.height) : NaN
+  return mw > 0 && mh > 0 ? mw * mh * 4 : Infinity
+}
+
+// All the captures of one overlay together stay within this, so a desktop full of
+// large windows can't cost a burst of memory: about 16 full-screen 1080p windows, or 4
+// at 4K. The rest show their icon.
+const CAPTURE_BUDGET = 128 * 1024 * 1024
+
+// Hands the budget out in order: windows on the workspaces on screen now, then the
+// scratchpad while it is down, then the other workspaces by number. A window that
+// doesn't fit is skipped, and smaller ones after it may still fit. Hidden special
+// workspaces are never drawn, so never captured. Only ever turns `capturable` off.
+// activeIds: the workspace ids on screen. budget: bytes (0 captures nothing).
+function withCaptureBudget(workspaces, activeIds, budget) {
+  const active = (activeIds || []).map(Number)
+  const onScreen = function(ws) { return !ws.special && active.indexOf(ws.id) !== -1 }
+  const order = workspaces.filter(onScreen)
+    .concat(workspaces.filter(function(ws) { return ws.special && ws.shown }))
+    .concat(workspaces.filter(function(ws) { return !ws.special && !onScreen(ws) }))
+  let left = finite(budget) > 0 ? finite(budget) : 0
+  const allowed = {}
+  order.forEach(function(ws) {
+    ws.windows.forEach(function(win) {
+      if (win.capturable === true && win.captureBytes <= left) {
+        allowed[win.address] = true
+        left -= win.captureBytes
+      }
+    })
+  })
+  return workspaces.map(function(ws) {
+    return Object.assign({}, ws, {
+      windows: ws.windows.map(function(win) {
+        return Object.assign({}, win, { capturable: allowed[win.address] === true })
+      })
+    })
+  })
+}
+
 // workspaces: [{ id, name, monitor: { name, x, y, width, height, scale, transform },
 //   shown, windows: [{ address, appId, title, at: [x, y], size: [w, h], floating, icon, ref,
 //   monitorId, mapped }] }]
 // monitors: Hyprland's monitor list, for canCapture.
 // `shown` says whether a special workspace is on screen right now (Hyprland hides the
 // scratchpad until its hotkey brings it down). `ref` is passed through untouched (the
-// live toplevel, for its thumbnail). Each window gets `capturable` from canCapture.
+// live toplevel, for its thumbnail). Each window gets `capturable` from canCapture and
+// `captureBytes`, what its capture would cost.
 // Returns the occupied ones only, by number; special (scratchpad) workspaces, whose
 // ids are negative, come after them by name. Floating windows are drawn last, on top.
 function occupiedWorkspaces(workspaces, monitors) {
@@ -110,6 +177,7 @@ function occupiedWorkspaces(workspaces, monitors) {
             at: win.at,
             size: win.size,
             capturable: canCapture(win.monitorId, win.mapped, monitors),
+            captureBytes: captureBytes(win.size, monitor),
             ref: win.ref
           }
         })
@@ -244,6 +312,7 @@ function chunk(list, size) {
 if (typeof module !== "undefined") {
   module.exports = {
     MAX_TEXT, SLOTS, cleanText, normalizeAddress, focusExpression, logicalSize, layoutWindows, canCapture,
+    capturesSupported, captureBytes, CAPTURE_BUDGET, withCaptureBudget,
     occupiedWorkspaces, windowBounds, regular, shownSpecial, slotLabel, spansMonitors, workspaceLabel,
     windowLabel, windowCount, flatWindows, moveCursor, fitTiles, chunk
   }
