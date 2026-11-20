@@ -1,6 +1,6 @@
 # Production readiness
 
-Status per engineering practice in [AGENTS.md](../AGENTS.md). Last updated 2026-11-19.
+Status per engineering practice in [AGENTS.md](../AGENTS.md). Last updated 2026-11-20.
 
 | Practice | In place | Open | Owner |
 |---|---|---|---|
