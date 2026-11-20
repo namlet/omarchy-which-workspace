@@ -240,3 +240,85 @@ test("the scratchpad crop keeps each window's capturable flag", () => {
   const cropped = Model.windowBounds(wsList[0])
   assert.deepEqual(cropped.windows.map((w) => w.capturable), [true, false])
 })
+
+// Review of 0.1.2 (omacom/omarchy-plugin-marketplace#15158): on Hyprland 0.56.2 no
+// client-side check can rule out the capture crash, so captures need 0.57.0 or newer.
+test("captures need Hyprland 0.57.0 or newer, read from hyprctl version -j", () => {
+  const v = (version, tag) => JSON.stringify({ version, tag })
+  assert.equal(Model.capturesSupported(v("0.57.0", "v0.57.0")), true)
+  assert.equal(Model.capturesSupported(v("0.57.1", "v0.57.1")), true)
+  assert.equal(Model.capturesSupported(v("0.60.0", "v0.60.0")), true)
+  assert.equal(Model.capturesSupported(v("1.0.0", "v1.0.0")), true)
+  assert.equal(Model.capturesSupported(v(undefined, "v0.57.0")), true)
+  assert.equal(Model.capturesSupported(v("0.56.2", "v0.56.2")), false)
+  assert.equal(Model.capturesSupported(v("0.56.9", "v0.56.9-12-gabc")), false)
+  assert.equal(Model.capturesSupported(v("0.9.99", "")), false)
+})
+
+test("an unknown Hyprland version means no captures", () => {
+  assert.equal(Model.capturesSupported(""), false)
+  assert.equal(Model.capturesSupported(undefined), false)
+  assert.equal(Model.capturesSupported("not json"), false)
+  assert.equal(Model.capturesSupported("{}"), false)
+  assert.equal(Model.capturesSupported(JSON.stringify({ version: "garbage" })), false)
+  assert.equal(Model.capturesSupported("null"), false)
+})
+
+// A capture's buffer is the window at full resolution: logical size times scale, 4 bytes a pixel.
+const M1080 = { name: "M", x: 0, y: 0, width: 1920, height: 1080, scale: 1 }
+const M4K = { name: "K", x: 0, y: 0, width: 3840, height: 2160, scale: 2 }
+const sized = (address, size, extra) => Object.assign(win(address, "foot", "~"), { at: [0, 0], size, monitorId: 0, mapped: true }, extra)
+
+test("a window's capture cost is its full-resolution buffer", () => {
+  const [ws] = Model.occupiedWorkspaces([{ id: 1, name: "1", monitor: M1080, windows: [sized("0xa", [1920, 1080])] }], monitors)
+  assert.equal(ws.windows[0].captureBytes, 1920 * 1080 * 4)
+  const [hidpi] = Model.occupiedWorkspaces([{ id: 1, name: "1", monitor: M4K, windows: [sized("0xa", [1920, 1080])] }], monitors)
+  assert.equal(hidpi.windows[0].captureBytes, 3840 * 2160 * 4)
+})
+
+test("a window of unknown size is costed as its whole monitor", () => {
+  const [ws] = Model.occupiedWorkspaces([{ id: 1, name: "1", monitor: M1080, windows: [Object.assign(win("0xa", "foot", "~"), { monitorId: 0, mapped: true })] }], monitors)
+  assert.equal(ws.windows[0].captureBytes, 1920 * 1080 * 4)
+})
+
+const FULL = 1920 * 1080 * 4
+const budgeted = (list, active, budget) => Model.withCaptureBudget(Model.occupiedWorkspaces(list, monitors), active, budget)
+const captured = (list) => Model.flatWindows(list).filter((w) => w.capturable).map((w) => w.address)
+
+test("the budget is 128 MB", () => {
+  assert.equal(Model.CAPTURE_BUDGET, 128 * 1024 * 1024)
+})
+
+test("windows past the budget are not captured; workspaces on screen go first", () => {
+  const list = [
+    { id: 1, name: "1", monitor: M1080, windows: [sized("0x1", [1920, 1080])] },
+    { id: 2, name: "2", monitor: M1080, windows: [sized("0x2", [1920, 1080])] },
+    { id: 3, name: "3", monitor: M1080, windows: [sized("0x3", [1920, 1080])] }
+  ]
+  assert.deepEqual(captured(budgeted(list, [3], FULL * 2)), ["0x1", "0x3"])
+  assert.deepEqual(captured(budgeted(list, [], FULL * 2)), ["0x1", "0x2"])
+  assert.deepEqual(captured(budgeted(list, [2], FULL * 3)), ["0x1", "0x2", "0x3"])
+})
+
+test("a big window that doesn't fit doesn't stop smaller ones after it", () => {
+  const list = [{ id: 1, name: "1", monitor: M1080, windows: [sized("0x1", [1920, 1080]), sized("0x2", [1920, 1080]), sized("0x3", [100, 100], { floating: true })] }]
+  assert.deepEqual(captured(budgeted(list, [1], FULL * 1.5)), ["0x1", "0x3"])
+})
+
+test("the scratchpad, while down, comes after the workspaces on screen; hidden specials never capture", () => {
+  const list = [
+    { id: 1, name: "1", monitor: M1080, windows: [sized("0x1", [1920, 1080])] },
+    { id: 2, name: "2", monitor: M1080, windows: [sized("0x2", [1920, 1080])] },
+    { id: -98, name: "special:scratchpad", shown: true, monitor: M1080, windows: [sized("0x9", [1920, 1080])] },
+    { id: -99, name: "special:hidden", shown: false, monitor: M1080, windows: [sized("0x8", [10, 10])] }
+  ]
+  assert.deepEqual(captured(budgeted(list, [2], FULL * 2)), ["0x2", "0x9"])
+  assert.deepEqual(captured(budgeted(list, [2], FULL * 10)), ["0x1", "0x2", "0x9"])
+})
+
+test("the budget never makes an uncapturable window capturable, and zero captures nothing", () => {
+  const list = [{ id: 1, name: "1", monitor: M1080, windows: [sized("0x1", [10, 10], { monitorId: -1 }), sized("0x2", [10, 10])] }]
+  assert.deepEqual(captured(budgeted(list, [1], FULL)), ["0x2"])
+  assert.deepEqual(captured(budgeted(list, [1], 0)), [])
+  assert.deepEqual(captured(budgeted(list, [1], undefined)), [])
+})
