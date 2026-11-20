@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
 import qs.Commons as Commons
@@ -24,8 +25,9 @@ Panel {
   readonly property real cardOpacity: 0.78
 
   // Re-evaluates whenever Hyprland's workspace or window models change, so the
-  // overlay is live while open without any polling.
-  readonly property var workspaces: Model.occupiedWorkspaces(Hyprland.workspaces.values.map(function(ws) {
+  // overlay is live while open without any polling. Captures stay within
+  // Model.CAPTURE_BUDGET, and there are none at all before Hyprland 0.57.0.
+  readonly property var workspaces: Model.withCaptureBudget(Model.occupiedWorkspaces(Hyprland.workspaces.values.map(function(ws) {
     var m = ws.monitor
     var mIpc = m ? (m.lastIpcObject || {}) : {}
     return {
@@ -51,7 +53,27 @@ Panel {
         }
       })
     }
-  }), root.monitorList)
+  }), root.monitorList), root.activeWorkspaceIds, root.capturesSupported ? Model.CAPTURE_BUDGET : 0)
+
+  // Whether this Hyprland is new enough to capture windows safely (Model.capturesSupported).
+  // Read once when the plugin loads, with a fixed command and no window data in it: a
+  // Hyprland update only takes effect in a new session, which reloads the plugin too.
+  // Until it answers, and if it fails, tiles show icons only.
+  property bool capturesSupported: false
+  Process {
+    running: true
+    command: ["hyprctl", "version", "-j"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.capturesSupported = Model.capturesSupported(text)
+    }
+  }
+
+  // The workspaces on screen now, which get the capture budget first.
+  readonly property var activeWorkspaceIds: Hyprland.monitors.values.map(function(m) {
+    var active = (m.lastIpcObject || {}).activeWorkspace
+    return active ? Number(active.id) : NaN
+  })
 
   // Monitors as Hyprland reports them now. A window may be captured only while its
   // monitor is in this list (see Model.canCapture).
@@ -159,16 +181,18 @@ Panel {
 
       ScreencopyView {
         id: capture
-        // Full resolution, capped so a huge window doesn't cost a huge texture.
+        // Laid out at full resolution, capped so a huge window doesn't cost a huge
+        // texture. The capture buffer itself is always full size: Model.CAPTURE_BUDGET
+        // is what bounds that.
         readonly property real cap: 2560
         readonly property real fit: sourceSize.width > 0 ? Math.min(1, cap / Math.max(sourceSize.width, sourceSize.height)) : 1
         width: Math.max(1, sourceSize.width * fit)
         height: Math.max(1, sourceSize.height * fit)
-        // Only while the overlay is open, and only for a window Hyprland places on a
-        // present monitor (Model.canCapture). Starting a capture of a window with no
-        // monitor crashes Hyprland 0.56.2 in CScreenshareSession::init: it happens
-        // around monitor sleep, wake and unplug. A window that can't be captured shows
-        // just its icon. A ScreencopyView grabs a frame as soon as it has a source, and
+        // Only while the overlay is open, and only for a window Model allows: Hyprland
+        // 0.57.0 or newer (starting a capture of a window with no monitor crashes
+        // 0.56.2 in CScreenshareSession::init, around monitor sleep, wake and unplug),
+        // placed on a present monitor, and within the capture budget. A window that
+        // isn't captured shows just its icon. A ScreencopyView grabs a frame as soon as it has a source, and
         // the tiles exist even while the overlay is closed, so closing releases them.
         readonly property bool allowed: root.opened && thumb.win !== null && thumb.win.capturable === true
         captureSource: allowed && thumb.win.ref ? thumb.win.ref.wayland : null

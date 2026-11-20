@@ -8,7 +8,7 @@ to it: its workspace comes up with that window focused.
 
 ![The Which Workspace overlay: three workspaces spread across a translucent card, with the scratchpad's drop-down terminal above them](preview.png)
 
-> **Status: early (0.1.2).** Tested on Omarchy 4.5 (Quickshell 0.3.2) with one monitor.
+> **Status: early (0.1.3).** Tested on Omarchy 4.5 (Quickshell 0.3.2) with one monitor.
 
 ## Install
 
@@ -30,6 +30,16 @@ omarchy bar move io.github.namlet.which-workspace --section right
 
 Tiles are numbered the way the bar numbers workspaces. The scratchpad shows up only
 while it's down: hit its hotkey and its tile slides down above the others.
+
+> **Icons instead of snapshots on Omarchy 4.5?** That's not how this plugin is meant to
+> look, and it's temporary. Window snapshots need Hyprland 0.57 or newer: Hyprland 0.56,
+> which Omarchy 4.5 ships, can crash when a window is captured around a monitor sleeping
+> or waking (fixed upstream in hyprwm/Hyprland#16451). Until Omarchy moves to 0.57, the
+> tiles show each window's app icon instead. Once it does, snapshots come back on their
+> own after `omarchy update`, with no plugin update needed.
+
+Snapshots are also capped at 128 MB in total per overlay: on a desktop
+with many large windows, the ones on screen come first and the rest show their icon.
 
 ### Hotkey
 
@@ -64,7 +74,8 @@ omarchy plugin remove io.github.namlet.which-workspace
 
 Reads Hyprland's workspace and window list through Quickshell's built-in service,
 takes a still snapshot of each window when the overlay opens (shown only there,
-never saved), and asks Hyprland to focus the window you pick. No network access, no
+never saved), and asks Hyprland to focus the window you pick. Runs `hyprctl version`
+once at startup to check the Hyprland version. No network access, no
 files written, no external dependencies, no elevated privileges.
 
 ## Development
