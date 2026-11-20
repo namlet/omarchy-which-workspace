@@ -31,9 +31,14 @@ omarchy bar move io.github.namlet.which-workspace --section right
 Tiles are numbered the way the bar numbers workspaces. The scratchpad shows up only
 while it's down: hit its hotkey and its tile slides down above the others.
 
-Window snapshots need Hyprland 0.57 or newer. Hyprland 0.56 can crash when a window is
-captured around a monitor sleeping or waking, so there the tiles show each window's app
-icon instead. Snapshots are also capped at 128 MB in total per overlay: on a desktop
+> **Icons instead of snapshots on Omarchy 4.5?** That's not how this plugin is meant to
+> look, and it's temporary. Window snapshots need Hyprland 0.57 or newer: Hyprland 0.56,
+> which Omarchy 4.5 ships, can crash when a window is captured around a monitor sleeping
+> or waking (fixed upstream in hyprwm/Hyprland#16451). Until Omarchy moves to 0.57, the
+> tiles show each window's app icon instead. Once it does, snapshots come back on their
+> own after `omarchy update`, with no plugin update needed.
+
+Snapshots are also capped at 128 MB in total per overlay: on a desktop
 with many large windows, the ones on screen come first and the rest show their icon.
 
 ### Hotkey
